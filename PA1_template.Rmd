@@ -1,25 +1,169 @@
 ---
 title: "Reproducible Research: Peer Assessment 1"
 output: 
-  html_document:
-    keep_md: true
+  html_document: 
+    keep_md: yes
 ---
+## **MARKDOWN ASSIGNMENT**
+========================
+
+**Assignment Instructions :**
+
+1. Code for reading in the dataset and/or processing the data
+2. Histogram of the total number of steps taken each day
+3. Mean and median number of steps taken each day
+4. Time series plot of the average number of steps taken
+5. The 5-minute interval that, on average, contains the maximum number of steps
+6. Code to describe and show a strategy for imputing missing data
+7. Histogram of the total number of steps taken each day after missing values are imputed
+8. Panel plot comparing the average number of steps taken per 5-minute interval across weekdays and weekends
+9. All of the R code needed to reproduce the results (numbers, plots, etc.) in the report
 
 
 ## Loading and preprocessing the data
+**Loading the data**
 
+```{r , echo = TRUE}
+dataset <- read.table(unz("activity.zip", "activity.csv"), header=T, quote="\"", sep=",")
+dataset
+```
 
+**Pre-processing the data**
+
+Exploring the important aspects of the dataset :
+
+1. Dimensions of the dataset
+
+```{r , echo = TRUE}
+dim(dataset)
+```
+
+2. Columns of the dataset
+
+```{r , echo = TRUE}
+names(dataset)
+```
+
+3. Head of the dataset
+
+```{r , echo = TRUE}
+head(dataset)
+```
+
+4. Total missing data
+
+```{r , echo = TRUE}
+sum(is.na(dataset))
+```
+
+5. Converting the dates from character to Date
+
+```{r , echo = TRUE}
+library(lubridate)
+dataset$date <- ymd(dataset$date)
+```
+
+6.Summary of the dataset
+
+```{r , echo = TRUE}
+summary(dataset)
+```
 
 ## What is mean total number of steps taken per day?
+**Histogram of the total number of steps taken each day**
 
+```{r , echo = TRUE}
+totalsteps <- aggregate(steps ~ date, dataset, sum, na.rm=TRUE)
+hist(totalsteps$steps , xlab = 'Total Number of steps' , ylab = 'Counts' , main = 'Histogram of total number of steps', col = 'red')
+```
 
+**Mean and median number of steps taken each day**
+
+1.Mean number of steps taken each day
+
+```{r , echo = TRUE}
+meansteps <- mean(totalsteps$steps)
+print('The Mean number of steps per day:')
+print(meansteps)
+```
+
+2.Median number of steps taken each day
+
+```{r , echo = TRUE}
+mediansteps <- median(totalsteps$steps)
+print('The Median number of steps per day:')
+print(mediansteps)
+```
 
 ## What is the average daily activity pattern?
+**Time series plot of the average number of steps taken**
 
+```{r , echo = TRUE}
+stepsperinterval <- aggregate(steps ~ interval, dataset, mean, na.rm=TRUE)
+plot(steps ~ interval , data = stepsperinterval , type ='l' , lwd = 3 ,col='blue')
+```
 
+**The 5-minute interval that, on average, contains the maximum number of steps**
+
+```{r , echo = TRUE}
+intervalfivemax <- stepsperinterval[which.max(stepsperinterval$steps),]$interval
+print('The 5-minute interval that, on average, contains the maximum number of steps is:')
+print(intervalfivemax)
+```
 
 ## Imputing missing values
+1. Total number of missing values in the dataset
+
+```{r , echo = TRUE}
+missingvalues <- sum(is.na(dataset))
+```
+
+2. Impute the missing values by the average of the values and create a new dataset
+
+```{r , echo = TRUE}
+stepsperinterval <- tapply(dataset$steps, dataset$interval, mean, na.rm = TRUE)
+dataset.split <- split(dataset, dataset$interval)
+# fill in missing data for each interval
+for(i in 1:length(dataset.split)){
+    dataset.split[[i]]$steps[is.na(dataset.split[[i]]$steps)] <- stepsperinterval[i]
+}
+dataset.imputed <- do.call("rbind", dataset.split)
+dataset.imputed <- dataset.imputed[order(dataset.imputed$date) ,]
+```
 
 
+**Histogram of the total number of steps taken each day after missing values are imputed**
+
+```{r , echo = TRUE}
+totalstepsnew <- tapply(dataset.imputed$steps, dataset.imputed$date, sum)
+hist(totalstepsnew , xlab = 'Total Number of steps' , ylab = 'Counts' , main = 'Histogram of total number of steps', col = 'red')
+```
+
+**Mean and median number of steps taken each day**
+
+1.Mean number of steps taken each day
+
+```{r , echo = TRUE}
+meanstepsnew <- mean(totalstepsnew , na.rm = TRUE)
+print('The Mean number of steps per day:')
+print(meanstepsnew)
+```
+
+2.Median number of steps taken each day
+
+```{r , echo = TRUE}
+medianstepsnew <- median(totalstepsnew , na.rm = TRUE)
+print('The Median number of steps per day')
+print(medianstepsnew)
+```
 
 ## Are there differences in activity patterns between weekdays and weekends?
+**Panel plot comparing the average number of steps taken per 5-minute interval across weekdays and weekends**
+
+```{r , echo = TRUE}
+weekdays <- c('Monday' , 'Tuesday' , 'Wednesday' , 'Thursday' , 'Friday')
+dataset.imputed$weekday <- as.factor(ifelse(is.element(weekdays(as.Date(dataset.imputed$date)),weekdays), "Weekday", "Weekend"))
+stepsnew <- aggregate(steps ~ interval + weekday , dataset.imputed, mean)
+library(lattice)
+xyplot(stepsnew$steps ~ stepsnew$interval|stepsnew$weekday, main="Average Steps per Day by Interval",xlab="Interval", ylab="Steps",layout=c(1,2), type="l") 
+```
